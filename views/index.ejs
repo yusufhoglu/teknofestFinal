@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Application</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #map {
+            height: 50%;
+            width: 100%;
+        }
+
+        #photo-upload {
+            height: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div id="photo-upload">
+        <form action="/upload" method="POST" enctype="multipart/form-data">
+            <input type="file" name="photo" accept="image/*">
+            <button type="submit">Fotoğraf Yükle</button>
+        </form>
+    </div>
+
+    <script>
+        function initMap() {
+            const map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: -34.397, lng: 150.644 },
+                zoom: 8,
+            });
+
+            map.addListener('click', (e) => {
+                placeMarkerAndPanTo(e.latLng, map);
+            });
+        }
+
+        function placeMarkerAndPanTo(latLng, map) {
+            const marker = new google.maps.Marker({
+                position: latLng,
+                map: map,
+            });
+            map.panTo(latLng);
+        }
+
+        function loadScript() {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=<%= apiKey %>&callback=initMap`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+        }
+
+        window.onload = loadScript;
+    </script>
+</body>
+</html>
