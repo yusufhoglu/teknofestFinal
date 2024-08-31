@@ -3,68 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Map Application</title>
-    <style>
-        body, html {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #map {
-            height: 50%;
-            width: 100%;
-        }
-
-        #photo-upload {
-            height: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-    </style>
+    <title>MetaMask Login</title>
 </head>
 <body>
-    <div id="map"></div>
+    <button id="loginButton">MetaMask ile Giriş Yap</button>
 
-    <div id="photo-upload">
-        <form action="/upload" method="POST" enctype="multipart/form-data">
-            <input type="file" name="photo" accept="image/*">
-            <button type="submit">Fotoğraf Yükle</button>
-        </form>
-    </div>
-
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
     <script>
-        function initMap() {
-            const map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: -34.397, lng: 150.644 },
-                zoom: 8,
-            });
+        const loginButton = document.getElementById('loginButton');
 
-            map.addListener('click', (e) => {
-                placeMarkerAndPanTo(e.latLng, map);
-            });
-        }
+        loginButton.onclick = async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                const signer = provider.getSigner();
+                const address = await signer.getAddress();
+                // Sunucudan nonce (rastgele sayı) al
+                const response = await fetch('http://localhost:3000/request-nonce', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 'address':address }),
+                })
+                const { nonce } = await response.json();
+                // Mesajı imzala
+                const signature = await signer.signMessage(`Nonce: ${nonce}`);
 
-        function placeMarkerAndPanTo(latLng, map) {
-            const marker = new google.maps.Marker({
-                position: latLng,
-                map: map,
-            });
-            map.panTo(latLng);
-        }
+                // Sunucuya imzayı gönder ve doğrula
+                const verifyResponse = await fetch('http://localhost:3000/verify-signature', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ address, signature }),
+                });
 
-        function loadScript() {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=<%= apiKey %>&callback=initMap`;
-            script.async = true;
-            script.defer = true;
-            document.head.appendChild(script);
-        }
-
-        window.onload = loadScript;
+                if (verifyResponse.ok) {
+                    alert('Giriş başarılı!');
+                } else {
+                    alert('Giriş başarısız!');
+                }
+            } else {
+                alert('MetaMask yüklü değil!');
+            }
+        };
     </script>
 </body>
 </html>

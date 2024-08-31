@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Google Maps - Fotoğraf Yükle</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=<%= apiKey %>"></script>
+    <style>
+        #map {
+            height: 400px;
+            width: 100%;
+        }
+        #coordinates {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h3>Harita Üzerinde Tıklayarak Koordinat Alın ve Fotoğraf Yükleyin</h3>
+    <div id="map"></div>
+    <div id="coordinates">Koordinatlar: </div>
+    <form id="photoForm" enctype="multipart/form-data">
+        <input type="file" id="photoUpload" name="photo" accept="image/*">
+        <input type="hidden" id="latitude" name="latitude">
+        <input type="hidden" id="longitude" name="longitude">
+        <button type="button" onclick="submitForm()">Fotoğrafı Gönder</button>
+    </form>
+    
+    <script>
+        var latitudeInput = document.getElementById('latitude');
+        var longitudeInput = document.getElementById('longitude');
+        var coordinatesDiv = document.getElementById('coordinates');
+
+        function initMap() {
+            var map = new google.maps.Map(document.getElementById('map'), {
+                center: {lat: 37.7749, lng: -122.4194}, // Başlangıç noktası (San Francisco)
+                zoom: 8
+            });
+
+            map.addListener('click', function(event) {
+                var coordinates = event.latLng;
+                latitudeInput.value = coordinates.lat();
+                longitudeInput.value = coordinates.lng();
+                coordinatesDiv.innerText = 'Koordinatlar: ' + coordinates.lat() + ', ' + coordinates.lng();
+            });
+        }
+
+        function submitForm() {
+            var formData = new FormData(document.getElementById('photoForm'));
+            
+            fetch('/home', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Fotoğraf başarıyla yüklendi!');
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+            });
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+</html>
