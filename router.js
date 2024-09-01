@@ -3,7 +3,7 @@ const express = require('express');
 const PORT = process.env.PORT || 3000;
 const app = express();
 const {requestNonce,verifySignature} = require('./controller/metamask.controller');
-const { upload, uploadPhoto } = require('./controller/photoUpload.controller');
+const { upload, uploadPhoto, getAllPhotos } = require('./controller/photoUpload.controller');
 app.use(express.json());
 // app.use(express.static('public'));
 app.set('view engine', 'ejs');
@@ -27,11 +27,17 @@ app.route('/home')
     uploadPhoto(req,res);
   })
 
+app.route('/get')
+  app.get('/photos', getAllPhotos);
+
 app.route('/request-nonce')
     .post((req, res) => {
         requestNonce(req,res);
     })
-
+app.route('/getAllPhotos')
+    .get((req,res) => {
+        getAllPhotos();
+    })
 app.route('/verify-signature')
     .post((req, res) => {
         $data = verifySignature(req,res);

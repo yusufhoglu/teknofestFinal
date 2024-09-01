@@ -4,6 +4,7 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('cloudinary').v2;
 const Photo = require('../model/Photo.model'); // Photo modelini import edin
 const connectDB = require('../database'); // database.js dosyasını import edin
+const { default: mongoose } = require('mongoose');
 
 const app = express();
 connectDB();
@@ -54,4 +55,16 @@ function uploadPhoto(req, res) {
     }
   };
 
-  module.exports = { upload, uploadPhoto };
+ // Tüm fotoğrafları döndüren işlev
+function getAllPhotos(req, res) {
+  Photo.find()
+      .then(photos => {
+        console.log(photos)
+      })
+      .catch(err => {
+          console.log(err);
+          res.status(500).json({ error: 'Verileri getirirken bir hata oluştu!' });
+      });
+}
+
+module.exports = { upload, uploadPhoto, getAllPhotos };
