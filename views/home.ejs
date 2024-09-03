@@ -45,7 +45,7 @@
 
         function submitForm() {
             var formData = new FormData(document.getElementById('photoForm'));
-            
+            console.log(formData.get('photo'));
             fetch('/home', {
                 method: 'POST',
                 body: formData

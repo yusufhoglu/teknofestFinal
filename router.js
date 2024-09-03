@@ -4,6 +4,7 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 const {requestNonce,verifySignature} = require('./controller/metamask.controller');
 const { upload, uploadPhoto, getAllPhotos } = require('./controller/photoUpload.controller');
+const search = require('./controller/map.controller');
 app.use(express.json());
 // app.use(express.static('public'));
 app.set('view engine', 'ejs');
@@ -29,6 +30,11 @@ app.route('/home')
 
 app.route('/get')
   app.get('/photos', getAllPhotos);
+
+app.route('/search')
+  .get((req, res) => {
+    return search();
+  })
 
 app.route('/request-nonce')
     .post((req, res) => {

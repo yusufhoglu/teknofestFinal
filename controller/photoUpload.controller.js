@@ -1,10 +1,14 @@
 const express = require('express');
 const multer = require('multer');
+const bs58 = require('bs58');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('cloudinary').v2;
 const Photo = require('../model/Photo.model'); // Photo modelini import edin
 const connectDB = require('../database'); // database.js dosyasını import edin
 const { default: mongoose } = require('mongoose');
+const { Connection, PublicKey, Keypair,Transaction, SystemProgram, clusterApiUrl,VersionedTransaction,sendAndConfirmTransaction } = require('@solana/web3.js');
+const secretKeyBase58 = process.env.SOLANA_PRIVATE_KEY;
+const secretKey = bs58.default.decode(secretKeyBase58);
 
 const app = express();
 connectDB();
@@ -27,10 +31,14 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage: storage });
 
+const connection = new Connection(clusterApiUrl('testnet'), 'confirmed');
+const payer = Keypair.fromSecretKey(secretKey);
+console.log('Payer Public Key:', payer.publicKey.toBase58());
+
 app.use(express.static('public'));
 
 // Fotoğraf yükleme işlevi
-function uploadPhoto(req, res) {
+async function uploadPhoto(req, res) {
     if (req.file) {
         const newPhoto = new Photo({
             imageUrl: req.file.path,
@@ -40,6 +48,42 @@ function uploadPhoto(req, res) {
         newPhoto.save()
             .then(() => {
                 console.log('Fotoğraf başarıyla yüklendi ve veritabanına kaydedildi!');
+                   // Phantom cüzdan adresini session'dan al
+                const userPhantomWalletAddress ="E3Afs9oEGi51gYt4XLyTvNKqvzmKARcMuGfzjeLLqfNG";
+                
+                // Test ağına SOL transferi
+                const recipientPublicKey = new PublicKey(userPhantomWalletAddress);
+                const transaction = new Transaction().add(
+                    SystemProgram.transfer({
+                        fromPubkey: payer.publicKey,
+                        toPubkey: recipientPublicKey,
+                        lamports: 10 // 1 SOL (Lamport cinsinden)
+                    })
+                );
+                // const transaction = new VersionedTransaction({
+                //   feePayer: payer.publicKey,
+                //   recentBlockhash:connection.getLatestBlockhash(),
+                // });
+                // transaction.add(
+                //   SystemProgram.transfer({
+                //     fromPubkey: payer.publicKey,
+                //     toPubkey: recipientPublicKey,
+                //     lamports: 10 // 1 SOL = 1_000_000_000 lamports
+                //   })
+                // );
+                // transaction.sign(payer);
+
+                try {
+                  // İşlemi gönderme
+                  const signature = sendAndConfirmTransaction(connection, transaction, [payer], {
+                    skipPreflight: false,
+                    commitment: 'confirmed', // veya 'processed', 'finalized'
+                  });
+              
+                  console.log('Transaction successful with signature:', signature);
+                } catch (error) {
+                  console.error('Transaction failed:', error);
+                }
                 res.json({
                     message: 'Fotoğraf başarıyla yüklendi ve veritabanına kaydedildi!',
                     imageUrl: req.file.path,
@@ -49,6 +93,7 @@ function uploadPhoto(req, res) {
                 console.log(err)
                 res.status(500).json({ error: 'Veritabanına kaydedilirken bir hata oluştu!' });
             });
+        
         
     } else {
         res.status(400).json({ error: 'Fotoğraf yüklenemedi!' });
