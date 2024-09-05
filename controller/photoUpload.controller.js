@@ -7,12 +7,11 @@ const Photo = require('../model/Photo.model'); // Photo modelini import edin
 const connectDB = require('../database'); // database.js dosyasını import edin
 const { default: mongoose } = require('mongoose');
 const { Connection, PublicKey, Keypair,Transaction, SystemProgram, clusterApiUrl,VersionedTransaction,sendAndConfirmTransaction } = require('@solana/web3.js');
-const secretKeyBase58 = process.env.SOLANA_PRIVATE_KEY;
-const secretKey = bs58.default.decode(secretKeyBase58);
+const { exec } = require('child_process');
+const path = require('path');
 
 const app = express();
 connectDB();
-
 // Cloudinary konfigürasyonu
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME, // Cloudinary hesap adınızı buraya girin
@@ -31,15 +30,31 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage: storage });
 
+
 const connection = new Connection(clusterApiUrl('testnet'), 'confirmed');
+
+const secretKeyBase58 = process.env.SOLANA_PRIVATE_KEY;
+const secretKey = bs58.default.decode(secretKeyBase58);
 const payer = Keypair.fromSecretKey(secretKey);
-console.log('Payer Public Key:', payer.publicKey.toBase58());
 
 app.use(express.static('public'));
 
 // Fotoğraf yükleme işlevi
 async function uploadPhoto(req, res) {
+    let data = [];
     if (req.file) {
+        // Yapay zeka modelini çalıştır
+        let output = await execPython(req.file.path);
+
+        console.log("output->",output);
+
+        if(parseInt(output) > 1){
+          data.push("Real, ", output);
+        }else{
+          data.push("Fake, ", output);
+        }
+        console.log(req.file.path);
+        // Fotoğrafı veritabanına kaydet
         const newPhoto = new Photo({
             imageUrl: req.file.path,
             latitude: req.body.latitude,
@@ -48,38 +63,27 @@ async function uploadPhoto(req, res) {
         newPhoto.save()
             .then(() => {
                 console.log('Fotoğraf başarıyla yüklendi ve veritabanına kaydedildi!');
-                   // Phantom cüzdan adresini session'dan al
-                const userPhantomWalletAddress ="E3Afs9oEGi51gYt4XLyTvNKqvzmKARcMuGfzjeLLqfNG";
-                
+                // Phantom cüzdan adresini session'dan al
+                const userPhantomWalletAddress =req.session.address;
+                // req.session.address;
+                // "E3Afs9oEGi51gYt4XLyTvNKqvzmKARcMuGfzjeLLqfNG";
+               // 0x0700d88926b84Bdc9705A416659b4F51f0107DAE
                 // Test ağına SOL transferi
                 const recipientPublicKey = new PublicKey(userPhantomWalletAddress);
                 const transaction = new Transaction().add(
                     SystemProgram.transfer({
                         fromPubkey: payer.publicKey,
                         toPubkey: recipientPublicKey,
-                        lamports: 10 // 1 SOL (Lamport cinsinden)
+                        lamports: 10 
                     })
                 );
-                // const transaction = new VersionedTransaction({
-                //   feePayer: payer.publicKey,
-                //   recentBlockhash:connection.getLatestBlockhash(),
-                // });
-                // transaction.add(
-                //   SystemProgram.transfer({
-                //     fromPubkey: payer.publicKey,
-                //     toPubkey: recipientPublicKey,
-                //     lamports: 10 // 1 SOL = 1_000_000_000 lamports
-                //   })
-                // );
-                // transaction.sign(payer);
-
+            
                 try {
                   // İşlemi gönderme
                   const signature = sendAndConfirmTransaction(connection, transaction, [payer], {
                     skipPreflight: false,
                     commitment: 'confirmed', // veya 'processed', 'finalized'
                   });
-              
                   console.log('Transaction successful with signature:', signature);
                 } catch (error) {
                   console.error('Transaction failed:', error);
@@ -87,6 +91,7 @@ async function uploadPhoto(req, res) {
                 res.json({
                     message: 'Fotoğraf başarıyla yüklendi ve veritabanına kaydedildi!',
                     imageUrl: req.file.path,
+                    data: data
                 });
             })
             .catch(err => {
@@ -110,6 +115,19 @@ function getAllPhotos(req, res) {
           console.log(err);
           res.status(500).json({ error: 'Verileri getirirken bir hata oluştu!' });
       });
+}
+
+function execPython(link){
+  return new Promise((resolve, reject) => {
+      const venvPath = path.join(__dirname, '..','ai', 'venv', 'Scripts', 'activate');
+      exec(`call ${venvPath} && set PYTHONIOENCODING=utf-8 && py ai/ai.py ${link}`, (error, stdout, stderr) => {
+        if (error) {
+                    reject(error);
+                    return;
+                }
+          resolve(stdout);
+      });
+  });
 }
 
 module.exports = { upload, uploadPhoto, getAllPhotos };

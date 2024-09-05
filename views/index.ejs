@@ -1,51 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MetaMask Login</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login with Phantom Wallet</title>
 </head>
 <body>
-    <button id="loginButton">MetaMask ile Giriş Yap</button>
+  <h1>Login with Phantom Wallet</h1>
+  <button id="connectButton">Connect with Phantom Wallet</button>
 
-    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
-    <script>
-        const loginButton = document.getElementById('loginButton');
+  <script>
+    document.getElementById('connectButton').addEventListener('click', async () => {
+      if (window.solana && window.solana.isPhantom) {
+        try {
+          const response = await window.solana.connect();
+          const publicKey = response.publicKey.toString();
+          console.log('Connected with wallet:', publicKey);
 
-        loginButton.onclick = async () => {
-            if (typeof window.ethereum !== 'undefined') {
-                const provider = new ethers.providers.Web3Provider(window.ethereum);
-                await provider.send("eth_requestAccounts", []);
-                const signer = provider.getSigner();
-                const address = await signer.getAddress();
-                // Sunucudan nonce (rastgele sayı) al
-                const response = await fetch('http://localhost:3000/request-nonce', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ 'address':address }),
-                })
-                const { nonce } = await response.json();
-                // Mesajı imzala
-                const signature = await signer.signMessage(`Nonce: ${nonce}`);
+          // Send publicKey to the server for authentication
+          const serverResponse = await fetch('/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ publicKey }),
+          });
 
-                // Sunucuya imzayı gönder ve doğrula
-                const verifyResponse = await fetch('http://localhost:3000/verify-signature', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ address, signature }),
-                });
+          const data = await serverResponse.json();
+          console.log('Server response:', data);
 
-                if (verifyResponse.ok) {
-                    alert('Giriş başarılı!');
-                } else {
-                    alert('Giriş başarısız!');
-                }
-            } else {
-                alert('MetaMask yüklü değil!');
-            }
-        };
-    </script>
+        } catch (err) {
+          console.error('Connection failed:', err);
+        }
+      } else {
+        console.log('Phantom wallet not found');
+      }
+    });
+  </script>
 </body>
 </html>
